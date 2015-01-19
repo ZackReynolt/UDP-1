@@ -1,0 +1,86 @@
+Unix-Systemfunktionen fuer Anwendungen mit UDP/IP
+
+1. benoetigte .h-Files:
+    sys/types.h
+    sys/socket.h
+    netinet/in.h
+   Link-Bibliotheken:
+    -lnsl -lsocket
+
+2. Socket-Erzeugung fuer Client und Server
+    int s;  Socket-Deskriptor-Variable
+    s = socket (Adressfamilie, Sockettyp, Protokoll);
+     Adressfamilie = AF_INET
+     Sockettyp     = SOCK_DGRAM
+     Protokoll     = 0    (Standardprotokoll - UDP)
+
+3. Systemfunktionen zur UDP-Server-Initialisierung
+    Adressblock anlegen
+     struct sockaddr_in server;
+     server.sin_family = AF_INET;
+     server.sin_port   = Portadresse;
+     server.sin_addr.s_addr = INADDR_ANY; 
+
+    Adressblock mit Socket verbinden
+     int rc;
+     rc = bind (s,(struct sockaddr*)&server, sizeof(server));
+      rc <  0  Fehler; 
+      rc == 0  kein Fehler; 
+
+    Serverprozess geht mit recvfrom() evtl. auch read() oder recv()
+    (siehe 5.) in den Empfangs-Zustand.
+
+4. Systemfunktionen zur UDP-Client-Initialisierung
+    Adressblock anlegen
+     struct sockaddr_in server;
+     char   serveradresse[16];
+     server.sin_family = AF_INET;
+     server.sin_port   = Portadresse auf dem Server;
+     server.sin_addr.s_addr = inet_addr (serveradresse);
+       Serveradresse als Zeichenkette in Punktnotation
+
+    Anforderung an Server durch Senden des ersten Datagramms mit
+     a) sendto() (siehe 5.) ohne connect oder
+     b) Socket und Adressblock verbinden mit
+        rc = connect(s, (struct sockaddr*)&server, sizeof(server));
+	   und Datagramm uebertragen mit write() oder send() (siehe 5.)
+ 
+5. Uebertragung von Datagrammen
+     struct sockaddr_in peer;  Adressblock fuer Adressen
+                               Gegenseite (Client oder Server) 
+     int l, flag=0, peerlen = sizeof(peer);
+     char buff[BUFFLEN];
+
+    Senden
+     l = sendto(s,buff, Datenlaenge, flag,
+                (struct sockaddr*)&peer, peerlen);
+         l   Anzahl der tatsaechlich gesendeten Bytes bzw.
+         l<0 bei Fehler
+       oder
+     l = write (s, buff, Datenlaenge);
+       oder
+     l = send (s, buff, Datenlaenge, flag);
+
+    Empfang	
+     l = recvfrom(s, buff, sizeof(buff), flag, 
+                  (struct sockaddr*)&peer, &peerlen);
+         l   Anzahl der tatsaechlich empfangenen Bytes bzw.
+         l<0 bei Fehler
+         Die Laengenvariabl peerlen muss vorher mit der Adressblock-
+         Laenge initialisiert sein!
+         Der Adresslock enthaelt IP- und Port-Adresse des Senders.
+     oder
+     l = read (s, buff, sizeof(buff));
+     oder
+     l = recv (s, buff, sizeof(buff), flag);
+
+6. Uebertragung beenden
+    close ( s )
+   Im Gegensatz zu TCP wird dadurch eine wartende Empfangsfunktion auf 
+   der Gegenseite nicht mit der Laenge 0 beendet.
+   oder
+    shutdown ( s, Modus )
+      Modus = 0 Empfangskanal schliessen
+              1 Sendekanal schliessen
+              2 Senden und Empfangen schliessen
+
